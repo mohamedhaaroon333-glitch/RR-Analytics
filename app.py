@@ -24,20 +24,25 @@ h1, h2, h3 { color: white !important; }
 """, unsafe_allow_html=True)
 
 # ==========================================
-# DATA LOCATION (data folder sits next to app.py)
+# DATA LOCATION
 # ==========================================
-FOLDER = Path(__file__).parent
+BASE_DIR = Path(__file__).parent
+DATA_DIR = BASE_DIR / "data" if (BASE_DIR / "data").exists() else BASE_DIR
 
 @st.cache_data
 def load_csv(filename):
-    path = FOLDER / filename
+    path = DATA_DIR / filename
     if not path.exists():
-        zipped = path.with_suffix(".zip")  # a zipped CSV is also accepted
-        if zipped.exists():
-            path = zipped
+        alt_path = BASE_DIR / filename
+        if alt_path.exists():
+            path = alt_path
         else:
-            st.error(f"Missing data file: {filename}")
-            return pd.DataFrame()
+            zipped = path.with_suffix(".zip")
+            if zipped.exists():
+                path = zipped
+            else:
+                st.error(f"Missing data file: {filename}")
+                return pd.DataFrame()
     return pd.read_csv(path, low_memory=False)
 
 rankings = load_csv("Player_Rankings.csv")
@@ -47,7 +52,7 @@ deliveries = load_csv("Pressure_Deliveries.csv")
 summary = load_csv("Pressure_Summary.csv")
 
 if rankings.empty or batters.empty or bowlers.empty:
-    st.warning("Required data files are missing from the data folder.")
+    st.warning("Required data files are missing. Please upload all 5 CSV files.")
     st.stop()
 
 # ==========================================
@@ -88,14 +93,14 @@ if page == "Executive Overview":
     st.subheader("📊 Executive Overview")
 
     total_players = rankings["Player"].nunique() if "Player" in rankings else 0
-    total_batters = len(batters)
-    total_bowlers = len(bowlers)
+    total_batters = batters["striker_name"].nunique() if "striker_name" in batters else 0
+    total_bowlers = bowlers["bowler_name"].nunique() if "bowler_name" in bowlers else 0
     total_deliveries = len(deliveries)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("PLAYERS ANALYSED", f"{total_players:,}")
-    c2.metric("BATTER RECORDS", f"{total_batters:,}")
-    c3.metric("BOWLER RECORDS", f"{total_bowlers:,}")
+    c2.metric("UNIQUE BATTERS", f"{total_batters:,}")
+    c3.metric("UNIQUE BOWLERS", f"{total_bowlers:,}")
     c4.metric("PRESSURE DELIVERIES", f"{total_deliveries:,}")
 
     st.divider()
@@ -215,7 +220,6 @@ elif page == "Player Explorer":
         st.markdown("### PLAYER PERFORMANCE DETAILS")
         st.dataframe(result, use_container_width=True, hide_index=True)
 
-        # show format-wise rows from BOTH tables if the player appears in them
         bat = batters[batters["striker_name"] == selected_player]
         bowl = bowlers[bowlers["bowler_name"] == selected_player]
         if not bat.empty:
@@ -247,17 +251,19 @@ elif page == "Dataset Information":
     st.divider()
     st.markdown("### ANALYTICAL FRAMEWORK")
     st.write("""
-    **1. Data Collection:** Ball-by-ball cricket data from IPL and T20I.
+    **1. Data Cleaning:** Ball-by-ball IPL & T20I data excluding DLS-affected matches, super overs, and incomplete games.
 
-    **2. Pressure Identification:** Identification of high-pressure deliveries.
+    **2. High-Pressure Delivery Identification:** Deliveries meeting at least 2 of 3 format-specific quartile pressure triggers:
+    - *2nd Innings (Chases):* Required Run Rate > 75th percentile, Wickets Lost >= 75th percentile, or Balls Remaining <= 25th percentile.
+    - *1st Innings (Setting Target):* Par Score Deficit <= 25th percentile, Wickets Lost >= 75th percentile, or Balls Remaining <= 25th percentile.
 
-    **3. Batter Evaluation:** Strike rate, boundaries, dot balls and dismissal metrics.
+    **3. Sample Size & Empirical Bayes Shrinkage:** Minimum threshold of 80 high-pressure balls and 120 normal balls, smoothed toward the format average (`PRIOR_BALLS = 100`) to prevent small-sample inflation.
 
-    **4. Bowler Evaluation:** Economy, bowling average, strike rate and dot-ball metrics.
+    **4. Batter Evaluation:** Weighted percentile index combining Pressure Strike Rate (30%), Strike Rate Delta vs. Normal Baseline (20%), Dismissal Rate (20%), Boundary % (15%), and Dot Ball % (15%).
 
-    **5. Player Ranking:** Weighted performance scores used to rank players.
+    **5. Bowler Evaluation:** Weighted percentile index combining Pressure Economy (30%), Economy Delta vs. Normal Baseline (20%), Bowling Average with zero-wicket penalty floor (20%), Bowling Strike Rate (15%), and Dot Ball % (15%).
 
-    **6. Auction Application:** Identifying reliable players to strengthen the Rajasthan Royals squad.
+    **6. Cross-Format Aggregation:** Ball-weighted aggregation across IPL (1.15x parity multiplier) and T20I (1.00x) with a volume confidence factor.
     """)
 
 # ==========================================
