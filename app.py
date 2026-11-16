@@ -26,7 +26,7 @@ h1, h2, h3 { color: white !important; }
 # ==========================================
 # DATA LOCATION (data folder sits next to app.py)
 # ==========================================
-FOLDER = Path(__file__).parent / "data"
+FOLDER = Path(__file__).parent
 
 @st.cache_data
 def load_csv(filename):
