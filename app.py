@@ -88,14 +88,14 @@ if page == "Executive Overview":
     st.subheader("📊 Executive Overview")
 
     total_players = rankings["Player"].nunique() if "Player" in rankings else 0
-    total_batters = batters["striker_name"].nunique() if "striker_name" in batters else 0
-    total_bowlers = bowlers["bowler_name"].nunique() if "bowler_name" in bowlers else 0
+    total_batters = len(batters)
+    total_bowlers = len(bowlers)
     total_deliveries = len(deliveries)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("PLAYERS ANALYSED", f"{total_players:,}")
-    c2.metric("BATTERS ANALYSED", f"{total_batters:,}")
-    c3.metric("BOWLERS ANALYSED", f"{total_bowlers:,}")
+    c2.metric("BATTER RECORDS", f"{total_batters:,}")
+    c3.metric("BOWLER RECORDS", f"{total_bowlers:,}")
     c4.metric("PRESSURE DELIVERIES", f"{total_deliveries:,}")
 
     st.divider()
